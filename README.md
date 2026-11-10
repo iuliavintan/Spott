@@ -2,6 +2,21 @@
 
 > **Project status:** Planning / pre-development
 
+## Repository structure
+
+```text
+Spott/
+├── android/                  # Android application workspace
+├── backend/                  # Firebase services and configuration
+├── docs/
+│   └── uml/
+│       └── use-cases.puml     # Spott use-case diagram (PlantUML)
+├── scripts/                  # Data import and development utilities
+└── README.md                 # Project overview
+```
+
+## Project overview
+
 ParkFlow is a proposed Android application that helps drivers find street parking by combining community reports, parking map data, and phone sensor signals. Think of it as a **Waze-inspired experience for parking**: when one driver is about to leave a parking spot, another driver looking for parking nearby can be notified and guided toward it.
 
 > **Important:** A reported space is **not a reservation or a guarantee of availability**. Parking legality, access rules, and restrictions must be checked independently.
@@ -99,6 +114,5 @@ Parking areas and individual reports should remain separate: a street known to a
 | Local preferences / optional offline cache | DataStore / Room |
 | Data ingestion | Python, Overpass API, GeoJSON/JSON processing |
 | Navigation in MVP | Launch Google Maps via intent; in-app navigation is out of scope initially |
-```
 
 

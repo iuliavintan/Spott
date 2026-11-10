@@ -1,0 +1,104 @@
+@startuml
+left to right direction
+skinparam packageStyle rectangle
+
+actor "Registered Driver" as Driver
+actor "Location & Activity Services" as LAS
+actor "External Navigation Service" as NAV
+actor "Notification Service" as NOTIF
+
+rectangle "Spott System" {
+
+  package "Account Management" {
+    usecase "Register Account" as UC_Register
+    usecase "Log In" as UC_Login
+    usecase "Log Out" as UC_Logout
+  }
+
+  package "Parking Detection & Saved Car Location" {
+    usecase "Detect Parking Automatically" as UC_Detect
+    usecase "Confirm Parking Detection" as UC_ConfirmDetect
+    usecase "Save Parking Location" as UC_SaveLocation
+    usecase "View Saved Car Location" as UC_ViewSaved
+    usecase "Adjust Parking Location" as UC_AdjustLocation
+  }
+
+  package "Parking Spot Reporting" {
+    usecase "Report Upcoming Departure" as UC_ReportLeaving
+    usecase "Select Parking Location" as UC_SelectLocation
+    usecase "Confirm Departure" as UC_ConfirmDeparture
+    usecase "Update Parking Report Status" as UC_UpdateStatus
+    usecase "Upload Parking Photo" as UC_UploadPhoto
+    usecase "Report Spot as Occupied" as UC_ReportOccupied
+  }
+
+  package "Parking Discovery" {
+    usecase "Search Nearby Parking" as UC_Search
+    usecase "View Parking Map" as UC_ViewMap
+    usecase "Get Current Location" as UC_GetLocation
+    usecase "Filter Parking Reports" as UC_Filter
+    usecase "View Parking Details" as UC_ViewDetails
+    usecase "View Parking Heatmap" as UC_Heatmap
+    usecase "Navigate to Parking Spot" as UC_Navigate
+  }
+
+  package "Active Search & Notifications" {
+    usecase "Start Parking Search" as UC_StartSearch
+    usecase "Receive Nearby Parking Alerts" as UC_ReceiveAlerts
+    usecase "Stop Parking Search" as UC_StopSearch
+  }
+}
+
+' Actor associations
+Driver --> UC_Register
+Driver --> UC_Login
+Driver --> UC_Logout
+
+Driver --> UC_ConfirmDetect
+Driver --> UC_ViewSaved
+Driver --> UC_AdjustLocation
+
+Driver --> UC_ReportLeaving
+Driver --> UC_ConfirmDeparture
+Driver --> UC_ReportOccupied
+
+Driver --> UC_Search
+Driver --> UC_Filter
+Driver --> UC_ViewDetails
+Driver --> UC_Heatmap
+Driver --> UC_Navigate
+
+Driver --> UC_StartSearch
+Driver --> UC_StopSearch
+Driver --> UC_ReceiveAlerts
+
+LAS --> UC_Detect
+LAS --> UC_GetLocation
+
+NAV --> UC_Navigate
+NOTIF --> UC_ReceiveAlerts
+
+' Include relationships
+UC_Detect ..> UC_ConfirmDetect : <<include>>
+UC_ConfirmDetect ..> UC_SaveLocation : <<include>>
+
+UC_Search ..> UC_ViewMap : <<include>>
+UC_Search ..> UC_GetLocation : <<include>>
+
+UC_ReportLeaving ..> UC_SelectLocation : <<include>>
+UC_ConfirmDeparture ..> UC_UpdateStatus : <<include>>
+UC_ReportOccupied ..> UC_UpdateStatus : <<include>>
+
+UC_Navigate ..> UC_ViewDetails : <<include>>
+UC_ReceiveAlerts ..> UC_StartSearch : <<include>>
+
+' Extend relationships
+UC_AdjustLocation ..> UC_SaveLocation : <<extend>>
+UC_UploadPhoto ..> UC_ReportLeaving : <<extend>>
+UC_Filter ..> UC_Search : <<extend>>
+UC_ViewDetails ..> UC_ViewMap : <<extend>>
+UC_Heatmap ..> UC_ViewMap : <<extend>>
+UC_Navigate ..> UC_Search : <<extend>>
+UC_ReceiveAlerts ..> UC_Search : <<extend>>
+
+@enduml

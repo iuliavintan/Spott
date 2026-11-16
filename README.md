@@ -2,7 +2,9 @@
 
 Spott is a planned Android application that helps drivers find street parking through community reports, parking map data, and optional phone activity signals. Drivers can report an upcoming departure, confirm that they have left, and help nearby drivers discover recently vacated spots.
 
-> **Project status:** Week 8 implements a local CRUD prototype for unpublished parking-report drafts using Room. The authenticated community workflow and backend services are planned.
+> **Project status:** Spott opens on an interactive MapLibre/OpenFreeMap map with Geoapify address search, location selection, and Room-backed unpublished parking drafts. Saved drafts support creation, viewing, editing, deletion, and persistence. The authenticated community workflow and backend services are planned.
+
+See [Maps and Places setup](android/MAPS_SETUP.md) to configure your Geoapify search key. The map and saved-draft CRUD work without a key.
 
 Reports describe approximate community observations and do not guarantee availability. Drivers must check parking legality, access rules, and restrictions.
 
@@ -94,7 +96,7 @@ The [domain model](docs/uml/domain-classes.puml) describes `User`, `SavedCarLoca
 | Layer | Technology |
 | --- | --- |
 | Android app | Kotlin, Android Studio, Jetpack Compose |
-| Map | Google Maps SDK for Android |
+| Map | MapLibre Native / OpenFreeMap |
 | Location and activity | Fused Location Provider, Activity Recognition API, Geofencing API |
 | Authentication | Firebase Authentication |
 | Database / real-time updates | Cloud Firestore |

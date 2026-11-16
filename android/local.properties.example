@@ -1,0 +1,2 @@
+# Add this to your existing, untracked local.properties; keep sdk.dir.
+GEOAPIFY_API_KEY=YOUR_GEOAPIFY_KEY

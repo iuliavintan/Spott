@@ -1,6 +1,5 @@
 package com.example.spott.ui.theme
 
-import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
@@ -9,35 +8,41 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 
-private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
+private val LightColorScheme = lightColorScheme(
+    primary = SpottTeal,
+    onPrimary = Color.White,
+    primaryContainer = Color(0xFFC1F2E5),
+    onPrimaryContainer = SpottInk,
+    secondary = Color(0xFF4A635D),
+    secondaryContainer = Color(0xFFDCECE5),
+    tertiary = Color(0xFF795900),
+    tertiaryContainer = SpottAmber,
+    onTertiaryContainer = Color(0xFF302300),
+    background = Color(0xFFF6F9F6),
+    surface = Color(0xFFF6F9F6)
 )
 
-private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
-
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+private val DarkColorScheme = darkColorScheme(
+    primary = SpottMint,
+    onPrimary = Color(0xFF00382F),
+    primaryContainer = Color(0xFF005047),
+    onPrimaryContainer = Color(0xFFC1F2E5),
+    secondary = Color(0xFFB3CCC3),
+    secondaryContainer = Color(0xFF334C44),
+    tertiary = SpottAmber,
+    tertiaryContainer = Color(0xFF594300),
+    onTertiaryContainer = Color(0xFFFFE4A1),
+    background = Color(0xFF101917),
+    surface = Color(0xFF101917)
 )
 
 @Composable
 fun SpottTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
@@ -45,14 +50,8 @@ fun SpottTheme(
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
-
         darkTheme -> DarkColorScheme
         else -> LightColorScheme
     }
-
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
-        content = content
-    )
+    MaterialTheme(colorScheme = colorScheme, typography = Typography, content = content)
 }

@@ -12,8 +12,16 @@ room = "2.8.5"
 ksp = "2.3.9"
 navigation = "2.9.8"
 coroutines = "1.10.2"
+maplibre = "11.8.2"
+
+location = "21.3.0"
 
 [libraries]
+maplibre-native = { module = "org.maplibre.gl:android-sdk", version.ref = "maplibre" }
+
+google-location = { module = "com.google.android.gms:play-services-location", version.ref = "location" }
+kotlinx-coroutines-play-services = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-play-services", version.ref = "coroutines" }
+androidx-compose-material-icons = { module = "androidx.compose.material:material-icons-extended" }
 androidx-room-runtime = { module = "androidx.room:room-runtime", version.ref = "room" }
 androidx-room-compiler = { module = "androidx.room:room-compiler", version.ref = "room" }
 androidx-navigation-compose = { module = "androidx.navigation:navigation-compose", version.ref = "navigation" }

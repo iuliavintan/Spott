@@ -1,8 +1,17 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.ksp)
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
 }
+
+// Local configuration is deliberately not part of version control.
+val localConfig = Properties().apply {
+    val configFile = rootProject.file("local.properties")
+    if (configFile.exists()) configFile.inputStream().use { load(it) }
+}
+val geoapifyApiKey = localConfig.getProperty("GEOAPIFY_API_KEY", "").trim()
 
 android {
     namespace = "com.example.spott"
@@ -16,6 +25,7 @@ android {
         targetSdk = 37
         versionCode = 1
         versionName = "1.0"
+        resValue("string", "geoapify_api_key", geoapifyApiKey)
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -34,6 +44,7 @@ android {
     }
     buildFeatures {
         compose = true
+        resValues = true
     }
 }
 
@@ -42,6 +53,11 @@ ksp {
 }
 
 dependencies {
+    implementation(libs.maplibre.native)
+
+    implementation(libs.google.location)
+    implementation(libs.kotlinx.coroutines.play.services)
+    implementation(libs.androidx.compose.material.icons)
     implementation(libs.androidx.room.runtime)
     ksp(libs.androidx.room.compiler)
     implementation(libs.androidx.navigation.compose)

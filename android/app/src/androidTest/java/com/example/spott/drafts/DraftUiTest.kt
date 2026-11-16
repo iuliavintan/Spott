@@ -18,6 +18,7 @@ class DraftUiTest {
         compose.onNodeWithText("Location / address").performTextInput("Unsaved university location")
         compose.activityRule.scenario.recreate()
         compose.onNodeWithText("Location / address").assertTextContains("Unsaved university location")
+        compose.onNodeWithText("Coordinates (advanced)").performScrollTo().performClick()
         compose.onNodeWithText("Latitude").performScrollTo().performTextInput("91")
         compose.onNodeWithText("Save draft").performScrollTo().performClick()
         compose.onNodeWithText("Enter latitude from -90 to 90 using a decimal dot.").performScrollTo().assertIsDisplayed()

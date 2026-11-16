@@ -15,13 +15,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.spott.drafts.*
+import com.example.spott.map.mapPointOrNull
 import com.example.spott.ui.theme.SpottTheme
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 
-private fun timestamp(value: Long): String = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT)
+internal fun formatDraftTimestamp(value: Long): String = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT)
     .withZone(ZoneId.systemDefault()).format(Instant.ofEpochMilli(value))
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -48,8 +49,8 @@ private fun MessageState(title: String, message: String, onRetry: (() -> Unit)? 
 }
 
 @Composable
-fun DraftListScreen(state: LoadState<List<ParkingReportDraft>>, onRetry: () -> Unit, onCreate: () -> Unit, onOpen: (String) -> Unit) {
-    DraftPage(title = "Spott", action = { ExtendedFloatingActionButton(onClick = onCreate) { Text("New draft") } }) {
+fun DraftListScreen(state: LoadState<List<ParkingReportDraft>>, onRetry: () -> Unit, onCreate: () -> Unit, onOpen: (String) -> Unit, onBack: (() -> Unit)? = null) {
+    DraftPage(title = "Saved drafts", onBack = onBack, action = { ExtendedFloatingActionButton(onClick = onCreate) { Text("New draft") } }) {
         LazyColumn(contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 104.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             item { Text("Draft reports", style = MaterialTheme.typography.headlineMedium) }
             when (state) {
@@ -63,7 +64,8 @@ fun DraftListScreen(state: LoadState<List<ParkingReportDraft>>, onRetry: () -> U
                                 Text("UNPUBLISHED DRAFT", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
                                 Text(draft.location, style = MaterialTheme.typography.titleLarge)
                                 Text(draft.notes.ifBlank { "No notes added" }, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium)
-                                Text("Updated ${timestamp(draft.updatedAt)}", style = MaterialTheme.typography.bodySmall)
+                                Text("Updated ${formatDraftTimestamp(draft.updatedAt)}", style = MaterialTheme.typography.bodySmall)
+                                if (draft.mapPointOrNull() == null) Text("No map position", style = MaterialTheme.typography.labelMedium)
                             }
                         }
                     }
@@ -74,7 +76,7 @@ fun DraftListScreen(state: LoadState<List<ParkingReportDraft>>, onRetry: () -> U
 }
 
 @Composable
-fun DraftEditorScreen(state: EditorState, editing: Boolean, onInput: (DraftInput) -> Unit, onSave: () -> Unit, onBack: () -> Unit, onRetry: () -> Unit) {
+fun DraftEditorScreen(state: EditorState, editing: Boolean, onInput: (DraftInput) -> Unit, onSave: () -> Unit, onBack: () -> Unit, onRetry: () -> Unit, onPickLocation: (() -> Unit)? = null) {
     DraftPage(if (editing) "Edit draft" else "New draft", onBack, state.busy) {
         when {
             state.loading -> CircularProgressIndicator(Modifier.padding(16.dp))
@@ -82,15 +84,21 @@ fun DraftEditorScreen(state: EditorState, editing: Boolean, onInput: (DraftInput
             state.loadFailed -> MessageState("Could not open draft", "Try loading it again.", onRetry)
             else -> Column(Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 val input = state.input
+                if (onPickLocation != null) FilledTonalButton(onClick = onPickLocation, enabled = !state.busy, modifier = Modifier.fillMaxWidth()) {
+                    Text(if (input.latitude.isBlank()) "Choose location on map" else "Adjust location on map")
+                }
                 OutlinedTextField(value = input.location, onValueChange = { onInput(input.copy(location = it)) }, label = { Text("Location / address") }, modifier = Modifier.fillMaxWidth(), enabled = !state.busy,
                     isError = state.errors.location != null, supportingText = { Text(state.errors.location ?: "Required. Describe the location clearly.") })
-                Text("Coordinates (optional)", style = MaterialTheme.typography.titleMedium)
+                var showCoordinates by rememberSaveable { mutableStateOf(false) }
+                TextButton(onClick = { showCoordinates = !showCoordinates }) { Text(if (showCoordinates) "Hide coordinates" else "Coordinates (advanced)") }
+                if (showCoordinates || state.errors.latitude != null || state.errors.longitude != null) {
                 Text("Enter both or leave both blank. Use a decimal dot, for example 45.75 and 21.23.", style = MaterialTheme.typography.bodyMedium)
                 // Text keyboards consistently allow both a minus sign and decimal dot across IMEs.
                 OutlinedTextField(value = input.latitude, onValueChange = { onInput(input.copy(latitude = it)) }, label = { Text("Latitude") }, modifier = Modifier.fillMaxWidth(), singleLine = true, enabled = !state.busy,
                     isError = state.errors.latitude != null, supportingText = { Text(state.errors.latitude ?: "From -90 to 90") })
                 OutlinedTextField(value = input.longitude, onValueChange = { onInput(input.copy(longitude = it)) }, label = { Text("Longitude") }, modifier = Modifier.fillMaxWidth(), singleLine = true, enabled = !state.busy,
                     isError = state.errors.longitude != null, supportingText = { Text(state.errors.longitude ?: "From -180 to 180") })
+                }
                 OutlinedTextField(value = input.notes, onValueChange = { onInput(input.copy(notes = it)) }, label = { Text("Notes (optional)") }, modifier = Modifier.fillMaxWidth(), minLines = 3, enabled = !state.busy)
                 if (state.storageError) Text("Could not save. Your input is kept; tap Save draft to retry.", color = MaterialTheme.colorScheme.error)
                 Button(onClick = onSave, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp), enabled = !state.busy) { Text(if (state.busy) "Saving…" else "Save draft") }
@@ -101,7 +109,7 @@ fun DraftEditorScreen(state: EditorState, editing: Boolean, onInput: (DraftInput
 }
 
 @Composable
-fun DraftDetailsScreen(state: LoadState<ParkingReportDraft?>, deletion: DeleteState, onRetry: () -> Unit, onEdit: () -> Unit, onDelete: () -> Unit, onBack: () -> Unit) {
+fun DraftDetailsScreen(state: LoadState<ParkingReportDraft?>, deletion: DeleteState, onRetry: () -> Unit, onEdit: () -> Unit, onDelete: () -> Unit, onBack: () -> Unit, onShowMap: (() -> Unit)? = null) {
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
     DraftPage("Draft details", onBack, deletion.busy) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -116,9 +124,10 @@ fun DraftDetailsScreen(state: LoadState<ParkingReportDraft?>, deletion: DeleteSt
                         Text("Notes", style = MaterialTheme.typography.titleMedium)
                         Text(draft.notes.ifBlank { "No notes added" })
                         if (draft.latitude != null && draft.longitude != null) Text("Coordinates: ${draft.latitude}, ${draft.longitude}")
+                        if (draft.mapPointOrNull() != null && onShowMap != null) FilledTonalButton(onClick = onShowMap, enabled = !deletion.busy, modifier = Modifier.fillMaxWidth()) { Text("Show on map") }
                         HorizontalDivider()
-                        Text("Created ${timestamp(draft.createdAt)}", style = MaterialTheme.typography.bodyMedium)
-                        Text("Updated ${timestamp(draft.updatedAt)}", style = MaterialTheme.typography.bodyMedium)
+                        Text("Created ${formatDraftTimestamp(draft.createdAt)}", style = MaterialTheme.typography.bodyMedium)
+                        Text("Updated ${formatDraftTimestamp(draft.updatedAt)}", style = MaterialTheme.typography.bodyMedium)
                         Button(onClick = onEdit, enabled = !deletion.busy, modifier = Modifier.fillMaxWidth()) { Text("Edit draft") }
                         OutlinedButton(onClick = { confirmDelete = true }, enabled = !deletion.busy, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)) {
                             Text(if (deletion.busy) "Deleting…" else "Delete draft")

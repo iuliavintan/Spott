@@ -39,16 +39,6 @@ private fun DraftPage(title: String, onBack: (() -> Unit)? = null, busy: Boolean
 }
 
 @Composable
-private fun PrototypeNotice() {
-    Surface(color = MaterialTheme.colorScheme.secondaryContainer, shape = MaterialTheme.shapes.medium) {
-        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("Local CRUD prototype", style = MaterialTheme.typography.labelLarge)
-            Text("This prototype saves drafts locally. They are unpublished and do not indicate available parking.", style = MaterialTheme.typography.bodyMedium)
-        }
-    }
-}
-
-@Composable
 private fun MessageState(title: String, message: String, onRetry: (() -> Unit)? = null) {
     Column(Modifier.fillMaxWidth().padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(title, style = MaterialTheme.typography.titleLarge)
@@ -61,7 +51,6 @@ private fun MessageState(title: String, message: String, onRetry: (() -> Unit)? 
 fun DraftListScreen(state: LoadState<List<ParkingReportDraft>>, onRetry: () -> Unit, onCreate: () -> Unit, onOpen: (String) -> Unit) {
     DraftPage(title = "Spott", action = { ExtendedFloatingActionButton(onClick = onCreate) { Text("New draft") } }) {
         LazyColumn(contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 104.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            item { PrototypeNotice() }
             item { Text("Draft reports", style = MaterialTheme.typography.headlineMedium) }
             when (state) {
                 LoadState.Loading -> item { CircularProgressIndicator() }
@@ -92,7 +81,6 @@ fun DraftEditorScreen(state: EditorState, editing: Boolean, onInput: (DraftInput
             state.missing -> MessageState("Draft no longer exists", "Return to the list to choose another draft.")
             state.loadFailed -> MessageState("Could not open draft", "Try loading it again.", onRetry)
             else -> Column(Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                PrototypeNotice()
                 val input = state.input
                 OutlinedTextField(value = input.location, onValueChange = { onInput(input.copy(location = it)) }, label = { Text("Location / address") }, modifier = Modifier.fillMaxWidth(), enabled = !state.busy,
                     isError = state.errors.location != null, supportingText = { Text(state.errors.location ?: "Required. Describe the location clearly.") })
@@ -123,7 +111,6 @@ fun DraftDetailsScreen(state: LoadState<ParkingReportDraft?>, deletion: DeleteSt
                 is LoadState.Ready -> {
                     val draft = state.value
                     if (draft == null) MessageState("Draft no longer exists", "Return to the list to choose another draft.") else {
-                        PrototypeNotice()
                         Text("Unpublished draft", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
                         Text(draft.location, style = MaterialTheme.typography.headlineMedium)
                         Text("Notes", style = MaterialTheme.typography.titleMedium)

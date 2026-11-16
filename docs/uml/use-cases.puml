@@ -1,41 +1,39 @@
 @startuml
 left to right direction
-skinparam packageStyle rectangle
+skinparam packageStyle folder
+skinparam linetype ortho
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam nodesep 35
+skinparam ranksep 60
 
-actor "Registered Driver" as Driver
-actor "Location & Activity Services" as LAS
-actor "External Navigation Service" as NAV
-actor "Notification Service" as NOTIF
+title Spott - Use Case Diagram
+
+actor "Unauthenticated Driver" as Guest
+actor "Authenticated Driver" as Driver
 
 rectangle "Spott System" {
-
   package "Account Management" {
     usecase "Register Account" as UC_Register
     usecase "Log In" as UC_Login
     usecase "Log Out" as UC_Logout
   }
 
-  package "Parking Detection & Saved Car Location" {
-    usecase "Detect Parking Automatically" as UC_Detect
-    usecase "Confirm Parking Detection" as UC_ConfirmDetect
-    usecase "Save Parking Location" as UC_SaveLocation
+  package "Saved Car Location" {
+    usecase "Save Car Location" as UC_SaveLocation
     usecase "View Saved Car Location" as UC_ViewSaved
-    usecase "Adjust Parking Location" as UC_AdjustLocation
+    usecase "Adjust Saved Car Location" as UC_AdjustLocation
   }
 
   package "Parking Spot Reporting" {
     usecase "Report Upcoming Departure" as UC_ReportLeaving
-    usecase "Select Parking Location" as UC_SelectLocation
     usecase "Confirm Departure" as UC_ConfirmDeparture
-    usecase "Update Parking Report Status" as UC_UpdateStatus
-    usecase "Upload Parking Photo" as UC_UploadPhoto
-    usecase "Report Spot as Occupied" as UC_ReportOccupied
+    usecase "Cancel Upcoming Departure" as UC_CancelDeparture
+    usecase "Report Spot Availability" as UC_ReportAvailability
   }
 
   package "Parking Discovery" {
     usecase "Search Nearby Parking" as UC_Search
-    usecase "View Parking Map" as UC_ViewMap
-    usecase "Get Current Location" as UC_GetLocation
     usecase "Filter Parking Reports" as UC_Filter
     usecase "View Parking Details" as UC_ViewDetails
     usecase "View Parking Heatmap" as UC_Heatmap
@@ -49,56 +47,52 @@ rectangle "Spott System" {
   }
 }
 
-' Actor associations
-Driver --> UC_Register
-Driver --> UC_Login
-Driver --> UC_Logout
+actor "Device Location &\nActivity Services" as LAS
+actor "External Navigation\nService" as NAV
+actor "Push Notification\nService" as NOTIF
 
-Driver --> UC_ConfirmDetect
-Driver --> UC_ViewSaved
-Driver --> UC_AdjustLocation
+' Associations indicate participation, not execution order or initiation.
+Guest -- UC_Register
+Guest -- UC_Login
 
-Driver --> UC_ReportLeaving
-Driver --> UC_ConfirmDeparture
-Driver --> UC_ReportOccupied
+Driver -- UC_Logout
+Driver -- UC_SaveLocation
+Driver -- UC_ViewSaved
+Driver -- UC_AdjustLocation
+Driver -- UC_ReportLeaving
+Driver -- UC_ConfirmDeparture
+Driver -- UC_CancelDeparture
+Driver -- UC_ReportAvailability
+Driver -- UC_Search
+Driver -- UC_ViewDetails
+Driver -- UC_Heatmap
+Driver -- UC_Navigate
+Driver -- UC_StartSearch
+Driver -- UC_StopSearch
+Driver -- UC_ReceiveAlerts
 
-Driver --> UC_Search
-Driver --> UC_Filter
-Driver --> UC_ViewDetails
-Driver --> UC_Heatmap
-Driver --> UC_Navigate
+UC_SaveLocation -right- LAS
+UC_ConfirmDeparture -right- LAS
+UC_Search -right- LAS
+UC_Navigate -right- NAV
+UC_ReceiveAlerts -right- NOTIF
 
-Driver --> UC_StartSearch
-Driver --> UC_StopSearch
-Driver --> UC_ReceiveAlerts
+' Optional filtering; current product rules are in modeling-decisions.md.
+UC_Search <.. UC_Filter : <<extend>>
 
-LAS --> UC_Detect
-LAS --> UC_GetLocation
+' Hidden links constrain layout only; they are not UML relationships.
+Guest -[hidden]-> UC_Register
+Driver -[hidden]-> UC_Search
+UC_Filter -[hidden]-> LAS
+UC_Filter -[hidden]-> NAV
+UC_Filter -[hidden]-> NOTIF
 
-NAV --> UC_Navigate
-NOTIF --> UC_ReceiveAlerts
-
-' Include relationships
-UC_Detect ..> UC_ConfirmDetect : <<include>>
-UC_ConfirmDetect ..> UC_SaveLocation : <<include>>
-
-UC_Search ..> UC_ViewMap : <<include>>
-UC_Search ..> UC_GetLocation : <<include>>
-
-UC_ReportLeaving ..> UC_SelectLocation : <<include>>
-UC_ConfirmDeparture ..> UC_UpdateStatus : <<include>>
-UC_ReportOccupied ..> UC_UpdateStatus : <<include>>
-
-UC_Navigate ..> UC_ViewDetails : <<include>>
-UC_ReceiveAlerts ..> UC_StartSearch : <<include>>
-
-' Extend relationships
-UC_AdjustLocation ..> UC_SaveLocation : <<extend>>
-UC_UploadPhoto ..> UC_ReportLeaving : <<extend>>
-UC_Filter ..> UC_Search : <<extend>>
-UC_ViewDetails ..> UC_ViewMap : <<extend>>
-UC_Heatmap ..> UC_ViewMap : <<extend>>
-UC_Navigate ..> UC_Search : <<extend>>
-UC_ReceiveAlerts ..> UC_Search : <<extend>>
+legend bottom left
+  Parking and departure require driver confirmation.
+  Only the author can cancel an upcoming departure.
+  Occupied feedback requires a recent device location near the spot.
+  Reports expire after configurable time limits.
+  Active searches use a fixed, user-selected center and radius.
+endlegend
 
 @enduml

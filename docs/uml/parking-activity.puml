@@ -1,0 +1,116 @@
+@startuml
+!pragma useVerticalIf on
+title Spott - Parking and Report Lifecycle
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam activityBackgroundColor #EFF6FF
+skinparam activityBorderColor #2563EB
+
+|Parking Driver|
+start
+:Use an authenticated session;
+
+if (Save a car location now?) then (yes)
+|Spott|
+if (Parking initiated by a device suggestion?) then (yes)
+  :Receive optional location/activity signals;
+  :Suggest a parking position;
+else (manual)
+  |Parking Driver|
+  :Choose a parking position manually;
+endif
+
+|Parking Driver|
+:Review and, if needed, correct the position;
+if (Confirm parking?) then (yes)
+  |Spott|
+  :Save the driver's private car location;
+else (no)
+  :Dismiss the suggestion or cancel saving;
+  stop
+endif
+
+|Parking Driver|
+endif
+:View or adjust the saved car location as needed;
+
+|Spott|
+:Wait for a manual departure action
+or an optional return-to-car prompt;
+
+|Parking Driver|
+if (Report an upcoming departure?) then (yes)
+  :Select the saved position or a manual report position;
+  :Confirm the upcoming-departure report;
+else (no)
+  stop
+endif
+
+|Spott|
+:Create POTENTIALLY_LEAVING report;
+:Set expiresAt = serverNow + upcomingTtl;
+:Publish status and timestamp;
+:Evaluate alerts using each active search's
+fixed center, radius and filters;
+
+repeat
+  :Wait for an author action, observation or deadline;
+
+  if (serverNow >= expiresAt?) then (yes)
+    :Set EXPIRED;
+  elseif (Author cancels an upcoming report?) then (yes)
+    |Parking Driver|
+    :Cancel the upcoming departure;
+    |Spott|
+    :Verify author and POTENTIALLY_LEAVING state;
+    :Set CANCELLED;
+  elseif (Author confirms departure from an upcoming report?) then (yes)
+    |Parking Driver|
+    :Explicitly confirm departure;
+    |Spott|
+    :Verify author and POTENTIALLY_LEAVING state;
+    :Set RECENTLY_VACATED;
+    :Set departureConfirmedAt = serverNow;
+    :Set expiresAt = serverNow + vacatedTtl;
+    :Publish the change and evaluate matching alerts;
+  elseif (A driver submits occupied feedback?) then (yes)
+    |Nearby Driver|
+    :Observe the reported spot and request "Occupied";
+    |Spott|
+    :Obtain device position, timestamp and accuracy;
+    if (Fresh and accurate location inside proximity radius?) then (yes)
+      :Atomically recheck active status and expiry;
+      if (Report still active and unexpired?) then (yes)
+        :Record accepted feedback and set OCCUPIED;
+      else (no)
+        :Reject stale feedback and refresh current status;
+      endif
+    else (no)
+      :Reject feedback and explain missing, stale,
+inaccurate or distant location;
+    endif
+  elseif (Available feedback for a valid RECENTLY_VACATED report?) then (yes)
+    :Record the accepted available observation;
+    :Preserve the original expiresAt;
+  else (inapplicable action)
+    :Reject the action and refresh current status;
+  endif
+
+repeat while (Status active and serverNow < expiresAt?) is (yes) not (no)
+
+if (Status still active at the deadline?) then (yes)
+  :Set EXPIRED;
+endif
+:Exclude closed or overdue reports from live results
+and from newly generated alerts;
+:Retain timestamped history;
+:Use only qualifying observations for heatmaps;
+stop
+
+legend bottom left
+  Active states: POTENTIALLY_LEAVING and RECENTLY_VACATED.
+  All transitions recheck identity, current state and server time atomically.
+  Detection supplies suggestions; it never confirms parking or departure.
+  A report is an observation, not a reservation or guaranteed availability.
+endlegend
+@enduml

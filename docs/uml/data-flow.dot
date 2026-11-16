@@ -1,0 +1,74 @@
+digraph SpottDFD {
+  graph [rankdir=LR, bgcolor="white", fontname="Arial", fontsize=20,
+    label=<<B>Spott - Data Flow Overview</B><BR/><FONT POINT-SIZE="13">Logical DFD (Level 1) - four focused sections</FONT><BR/><FONT POINT-SIZE="12">Repeated IDs represent the same entity or store. Arrows carry data.</FONT>>,
+    labelloc=t, nodesep=0.5, ranksep=1.1, splines=spline,
+    newrank=true, pad=0.3];
+  node [fontname="Arial", fontsize=15, color="#475569", penwidth=1.3];
+  edge [fontname="Arial", fontsize=14, color="#475569", arrowsize=0.8];
+
+  // Each section is self-contained. Repeated E/D IDs are intentional DFD aliases.
+  subgraph cluster_reference_data {
+    graph [sortv=4, label=<<B>4. Parking reference data</B><BR/><FONT POINT-SIZE="12">Mapped parking rules describe the area, not current spot availability.</FONT>>,
+      labeljust=l, fontsize=17, color="#CBD5E1", style=rounded, margin=22];
+    Sources [shape=box, style=filled, fillcolor="#FFF7ED", label="E3\nParking data providers"];
+    P4 [shape=ellipse, style=filled, fillcolor="#EFF6FF", color="#2563EB", label="P4\nImport and verify\nparking data"];
+    D3_Import [shape=plain, label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="9"><TR><TD BORDER="1" SIDES="TB">D3 | Parking reference data</TD></TR></TABLE>>];
+
+    Sources -> P4 [label="Source datasets"];
+    P4 -> D3_Import [label="Verified parking data"];
+  }
+
+  subgraph cluster_discovery {
+    graph [sortv=3, label=<<B>3. Parking discovery and alerts</B><BR/><FONT POINT-SIZE="12">Map, details, confidence and heatmap. Active search uses a fixed chosen circle.</FONT>>,
+      labeljust=l, fontsize=17, color="#CBD5E1", style=rounded, margin=22];
+    Driver_C [shape=box, style=filled, fillcolor="#FFF7ED", label="E1\nDriver"];
+    P3 [shape=ellipse, style=filled, fillcolor="#EFF6FF", color="#2563EB", label="P3\nDiscover parking\nand match alerts"];
+    D2_Discovery [shape=plain, label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="9"><TR><TD BORDER="1" SIDES="TB">D2 | Reports and feedback</TD></TR></TABLE>>];
+    D3_Discovery [shape=plain, label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="9"><TR><TD BORDER="1" SIDES="TB">D3 | Parking reference data</TD></TR></TABLE>>];
+    D4 [shape=plain, label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="9"><TR><TD BORDER="1" SIDES="TB">D4 | Search subscriptions</TD></TR></TABLE>>];
+    Navigation [shape=box, style=filled, fillcolor="#FFF7ED", label="E4\nNavigation service"];
+    Push [shape=box, style=filled, fillcolor="#FFF7ED", label="E5\nPush service"];
+
+    Driver_C -> P3 [label="Center, radius, filters"];
+    P3 -> Driver_C [label="Map / details / alerts", constraint=false];
+    D2_Discovery -> P3 [label="Reports / history"];
+    D3_Discovery -> P3 [label="Verified parking rules"];
+    P3 -> D4 [label="Search settings"];
+    D4 -> P3 [label="Active circles and opt-in", constraint=false];
+    P3 -> Navigation [label="Destination"];
+    P3 -> Push [label="Alert payload"];
+  }
+
+  subgraph cluster_reports {
+    graph [sortv=2, label=<<B>2. Parking reports</B><BR/><FONT POINT-SIZE="12">Driver confirmation, cancellation, expiry and nearby occupancy checks.</FONT>>,
+      labeljust=l, fontsize=17, color="#CBD5E1", style=rounded, margin=22];
+    Driver_B [shape=box, style=filled, fillcolor="#FFF7ED", label="E1\nDriver"];
+    Device_B [shape=box, style=filled, fillcolor="#FFF7ED", label="E2\nDevice services"];
+    P2 [shape=ellipse, style=filled, fillcolor="#EFF6FF", color="#2563EB", label="P2\nManage reports\nand feedback"];
+    D2_Reports [shape=plain, label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="9"><TR><TD BORDER="1" SIDES="TB">D2 | Reports and feedback</TD></TR></TABLE>>];
+
+    Driver_B -> P2 [label="Report / feedback"];
+    P2 -> Driver_B [label="Status / validation", constraint=false];
+    Device_B -> P2 [label="Position evidence"];
+    P2 -> D2_Reports [label="Report updates"];
+    D2_Reports -> P2 [label="Current reports", constraint=false];
+  }
+
+  subgraph cluster_driver_data {
+    graph [sortv=1, label=<<B>1. Account and saved car location</B><BR/><FONT POINT-SIZE="12">Private car positions are saved after driver confirmation.</FONT>>,
+      labeljust=l, fontsize=17, color="#CBD5E1", style=rounded, margin=22];
+    Driver_A [shape=box, style=filled, fillcolor="#FFF7ED", label="E1\nDriver"];
+    Device_A [shape=box, style=filled, fillcolor="#FFF7ED", label="E2\nDevice services"];
+    P1 [shape=ellipse, style=filled, fillcolor="#EFF6FF", color="#2563EB", label="P1\nManage account\nand car location"];
+    D1 [shape=plain, label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="9"><TR><TD BORDER="1" SIDES="TB">D1 | Private driver data</TD></TR></TABLE>>];
+
+    Driver_A -> P1 [label="Account / location input"];
+    P1 -> Driver_A [label="Session / saved location", constraint=false];
+    Device_A -> P1 [label="Parking suggestions"];
+    P1 -> D1 [label="Saved private data"];
+    D1 -> P1 [label="Account / car data", constraint=false];
+  }
+  // Align section centers vertically; these invisible links carry no data.
+  { rank=same; P1; P2; P3; P4; }
+  P4 -> P3 -> P2 -> P1 [style=invis];
+}

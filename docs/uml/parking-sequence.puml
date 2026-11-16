@@ -1,0 +1,113 @@
+@startuml
+title Spott - Fixed-Area Search, Departure Report and Occupancy Feedback
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam sequenceMessageAlign center
+skinparam maxMessageSize 220
+hide footbox
+autonumber
+
+actor "Reporting\nDriver" as Reporter
+boundary "Reporter\nApp" as ReporterApp
+control "Spott\nBackend" as Backend
+database "Spott\nData" as Store
+participant "Push\nService" as Push
+boundary "Searcher\nApp" as SearcherApp
+actor "Searching\nDriver" as Searcher
+participant "Device Location\nService" as Location
+participant "External\nNavigation" as Navigation
+
+note over ReporterApp, SearcherApp
+  Parking operations require authentication.
+  The backend validates each write against current state and server time.
+  Device suggestions always require explicit driver confirmation.
+end note
+
+== Start a search around a chosen point ==
+Searcher -> SearcherApp : Choose fixed center, radius and filters
+SearcherApp -> Backend : Start active search(center, radius, filters)
+Backend -> Store : Save ACTIVE search and notification preference
+Backend --> SearcherApp : Search active with the chosen circle
+note over SearcherApp, Location
+  Moving the phone does not move the search center.
+  A new center or radius requires an explicit user action.
+end note
+
+== Publish an upcoming departure ==
+Reporter -> ReporterApp : Confirm report at saved or selected position
+ReporterApp -> Backend : Publish upcoming departure(position)
+Backend -> Store : Create POTENTIALLY_LEAVING;\nexpiresAt = serverNow + upcomingTtl
+Backend --> ReporterApp : Report id, status and expiry
+Backend -> Store : Find ACTIVE searches whose saved circles\ncontain the report and whose filters match
+Store --> Backend : Eligible recipients and current preferences
+loop Each eligible search with push permission and opt-in
+  Backend -> Backend : Recheck active search and unexpired report
+  Backend -> Push : Nearby upcoming-departure alert
+  Push -> SearcherApp : Deliver alert(report id and status)
+  SearcherApp --> Searcher : Show that a spot may become available
+end
+
+== Driver decision or report timeout ==
+alt Author confirms departure before expiry
+  Reporter -> ReporterApp : Explicitly confirm departure
+  ReporterApp -> Backend : Confirm departure(report id)
+  Backend -> Store : Check author, upcoming state and expiry;\nset RECENTLY_VACATED and departureConfirmedAt;\nexpiresAt = serverNow + vacatedTtl
+  Backend --> ReporterApp : Confirmed status and new expiry
+  ref over Backend, SearcherApp
+    Reuse fixed-area matching and permitted alert delivery
+    for the recently-vacated update
+  end ref
+else Author cancels upcoming departure before expiry
+  Reporter -> ReporterApp : Cancel upcoming departure
+  ReporterApp -> Backend : Cancel report(report id)
+  Backend -> Store : Check author and upcoming state; set CANCELLED
+  Backend --> ReporterApp : Cancellation accepted
+  Backend -> SearcherApp : Live report update: remove cancelled suggestion
+else Report reaches expiresAt
+  Backend -> Backend : Detect deadline using server time
+  Backend -> Store : Set EXPIRED if status is still active
+  Backend -> SearcherApp : Live report update: remove expired suggestion
+end
+
+== Inspect a still-active report ==
+opt Selected report is active and unexpired
+  Searcher -> SearcherApp : Open report details
+  SearcherApp -> Backend : Read current report
+  Backend -> Store : Read current state, expiry and verified zone rules
+  Store --> Backend : Report, timestamps and reference data
+  Backend --> SearcherApp : Details and heuristic confidence indicator
+  opt Driver requests navigation
+    Searcher -> SearcherApp : Navigate to selected report
+    SearcherApp -> Navigation : Open destination coordinates
+    Navigation --> SearcherApp : Handoff result
+  end
+
+  Searcher -> SearcherApp : Observe the spot and report "Occupied"
+  SearcherApp -> Location : Request a fresh device position
+  Location --> SearcherApp : Coordinates, timestamp and accuracy,\nor unavailable location
+  SearcherApp -> Backend : Occupied feedback(report id, location evidence)
+  Backend -> Store : Read latest report and proximity policy
+  Store --> Backend : State, spot position, expiry and thresholds
+  alt Active, unexpired report AND fresh, accurate, nearby evidence
+    Backend -> Store : Atomically recheck conditions;\nrecord feedback and set OCCUPIED
+    Backend --> SearcherApp : Occupied feedback accepted
+    Backend -> ReporterApp : Live report update: OCCUPIED
+    Backend -> Backend : Exclude report from new results and alerts
+  else Evidence missing, stale, inaccurate, distant or report already closed
+    Backend --> SearcherApp : Reject feedback with reason and current status
+    note over Backend, Store : Rejected feedback does not change the report.
+  end
+end
+
+== Stop active search ==
+Searcher -> SearcherApp : Stop parking search
+SearcherApp -> Backend : Stop search(search id)
+Backend -> Store : Set search inactive
+Backend --> SearcherApp : No new alerts generated for this search
+
+note over Backend, SearcherApp
+  Live queries exclude overdue reports even before expiry processing runs.
+  Already dispatched alerts can arrive late; opening one rechecks the report.
+  Timeout and proximity values are configurable, not fixed by this diagram.
+end note
+@enduml

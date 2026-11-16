@@ -1,0 +1,186 @@
+@startuml
+title Spott - Domain Class Model
+left to right direction
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+skinparam packageStyle folder
+hide empty members
+
+package "Drivers and Private Location" {
+  class User {
+    userId: String
+    email: String
+    notificationOptIn: Boolean
+  }
+
+  class SavedCarLocation {
+    position: GeoPoint
+    confirmedAt: Instant
+    updatedAt: Instant
+    --
+    confirmSave(position)
+    adjust(position)
+  }
+}
+
+package "Parking Reference Data" {
+  class ParkingDataSource {
+    sourceId: String
+    name: String
+    attribution: String
+    importedAt: Instant
+  }
+
+  class ParkingZone {
+    zoneId: String
+    geometry: GeoGeometry
+    feeRule: String
+    accessRule: String
+    verifiedAt: Instant [0..1]
+    sourceUpdatedAt: Instant
+  }
+
+  class ParkingPosition {
+    positionId: String
+    coordinates: GeoPoint
+    accuracyMeters: Decimal [0..1]
+  }
+}
+
+package "Reports and Observations" {
+  class ParkingReport {
+    reportId: String
+    status: ReportStatus
+    createdAt: Instant
+    updatedAt: Instant
+    departureConfirmedAt: Instant [0..1]
+    expiresAt: Instant
+    --
+    confirmDeparture(author, serverNow)
+    cancelUpcoming(author, serverNow)
+    acceptOccupied(feedback, policy, serverNow)
+    expire(serverNow)
+  }
+
+  enum ReportStatus {
+    POTENTIALLY_LEAVING
+    RECENTLY_VACATED
+    OCCUPIED
+    CANCELLED
+    EXPIRED
+  }
+
+  class AvailabilityFeedback {
+    feedbackId: String
+    kind: FeedbackKind
+    observedAt: Instant
+    acceptedAt: Instant
+  }
+
+  enum FeedbackKind {
+    AVAILABLE
+    OCCUPIED
+  }
+
+  class LocationEvidence <<value object>> {
+    coordinates: GeoPoint
+    capturedAt: Instant
+    accuracyMeters: Decimal
+  }
+
+  class ReportPolicy <<configuration>> {
+    upcomingTtl: Duration
+    vacatedTtl: Duration
+    occupiedProximityMeters: Decimal
+    maxLocationAge: Duration
+    maxLocationAccuracyMeters: Decimal
+  }
+}
+
+package "Discovery and Active Search" {
+  class ParkingSearch {
+    searchId: String
+    center: GeoPoint
+    radiusMeters: Decimal
+    active: Boolean
+    startedAt: Instant
+    stoppedAt: Instant [0..1]
+    --
+    start()
+    stop()
+    matches(report, serverNow): Boolean
+  }
+
+  class SearchFilters <<value object>> {
+    maxReportAge: Duration [0..1]
+    allowedStatuses: Set<ReportStatus>
+    verifiedFeeRules: Set<String>
+    verifiedAccessRules: Set<String>
+  }
+
+  class ParkingDiscovery <<domain service>> {
+    search(center, radius, filters, serverNow)
+    viewDetails(reportId, serverNow)
+    assessConfidence(report, observations)
+    buildHeatmap(area, period)
+    navigationDestination(reportId, serverNow)
+  }
+}
+
+User "1" -- "0..1" SavedCarLocation : owns current location
+User "1" -- "0..*" ParkingReport : authors
+User "1" -- "0..*" AvailabilityFeedback : submits
+User "1" -- "0..*" ParkingSearch : owns
+
+ParkingDataSource "1..*" -- "0..*" ParkingZone : provides attributed data
+ParkingZone "0..1" -- "0..*" ParkingPosition : contains
+ParkingReport "0..*" --> "1" ParkingPosition : refers to
+ParkingReport "1" -- "0..*" AvailabilityFeedback : receives accepted observations
+AvailabilityFeedback "1" *-- "0..1" LocationEvidence : location evidence
+ParkingReport --> ReportStatus
+AvailabilityFeedback --> FeedbackKind
+ParkingReport ..> ReportPolicy : enforces
+ParkingSearch "1" *-- "1" SearchFilters
+ParkingSearch ..> ParkingReport : matches active reports
+ParkingDiscovery ..> ParkingReport
+ParkingDiscovery ..> ParkingZone
+ParkingDiscovery ..> AvailabilityFeedback
+
+note bottom of SavedCarLocation
+  Private, driver-confirmed position.
+  Publishing a report is a separate driver action.
+  Device detection only suggests a candidate.
+end note
+
+note bottom of ParkingReport
+  Only active, unexpired reports accept transitions.
+  Departure confirmation and upcoming cancellation require the author.
+  AVAILABLE observations do not reopen reports or renew expiresAt.
+end note
+
+note bottom of LocationEvidence
+  Required for accepted OCCUPIED feedback.
+  Backend checks age, accuracy and distance to the reported position.
+  A manually selected map point is not proximity evidence.
+end note
+
+note bottom of ParkingSearch
+  center and radius are explicitly selected by the driver.
+  Phone movement does not change them.
+  Matching uses distance(report.position, center) <= radiusMeters,
+  active state, expiry and selected filters.
+end note
+
+note bottom of ParkingDiscovery
+  Heatmaps use sufficient qualifying observations.
+  Confidence is a heuristic indicator, not a validated probability.
+  Reference zones do not imply that a spot is currently free.
+end note
+
+legend bottom left
+  GeoPoint and GeoGeometry are geographic value types; Instant is a timestamp.
+  TTL and proximity thresholds are configurable; numeric values remain to be chosen.
+  Domain classes describe responsibilities and relationships, not a database schema.
+endlegend
+@enduml

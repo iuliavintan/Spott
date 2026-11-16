@@ -10,10 +10,14 @@ Spott/
 ├── backend/                  # Firebase services and configuration
 ├── docs/
 │   └── uml/
-│       └── use-cases.puml     # Spott use-case diagram (PlantUML)
+│       ├── README.md          # Use-case descriptions and modeling decisions
+│       ├── use-cases.puml     # Spott use-case diagram (PlantUML)
+│       └── use-cases.svg      # Rendered diagram preview
 ├── scripts/                  # Data import and development utilities
 └── README.md                 # Project overview
 ```
+
+See the [use-case model](docs/uml/README.md) for actors, scenarios, and the rationale behind the diagram's relationships.
 
 ## Project overview
 

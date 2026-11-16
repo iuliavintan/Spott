@@ -1,81 +1,117 @@
-# Spott use cases
+# Spott — Functional Documentation
 
-[PlantUML source](use-cases.puml) | [SVG preview](use-cases.svg)
+Spott combines an Android application and backend services for saving a car location, sharing departure reports, discovering parking, and receiving nearby alerts. The Android starter application is implemented; the parking functionality described here is planned.
+
+The [project overview](../../README.md#planned-features) separates the core MVP from the next iteration. Assisted parking suggestions, geofencing, active-search alerts, heatmaps, and the confidence indicator belong to the next iteration.
+
+## Diagrams
+
+| Diagram | Source | Preview | Description |
+| --- | --- | --- | --- |
+| Use cases | [PlantUML](use-cases.puml) | [SVG](use-cases.svg) | Actors and goals, including departure cancellation. |
+| Activity | [PlantUML](parking-activity.puml) | [SVG](parking-activity.svg) | Saving a car location and the parking-report lifecycle, including decisions and exceptions. |
+| Sequence | [PlantUML](parking-sequence.puml) | [SVG](parking-sequence.svg) | Fixed-area search, departure reporting, alerts, and proximity checks. |
+| Domain classes | [PlantUML](domain-classes.puml) | [SVG](domain-classes.svg) | Entities, values, responsibilities, and relationships. |
+| Data flow, level 1 | [Graphviz DOT](data-flow.dot) | [SVG](data-flow.svg) | Processes, external services, data stores, and information flow. |
 
 ![Spott use-case diagram](use-cases.svg)
-
-This model covers the features in the [project overview](../../README.md), including the planned next iteration. Automatic parking detection, photos, heatmaps, and push alerts are planned features; their presence here does not move them into the MVP.
 
 ## Actors and boundary
 
 The Spott boundary includes the Android app and its backend. Device location/activity services, the navigation provider, and the push delivery provider exchange information with Spott from outside that boundary.
 
 - **Unauthenticated Driver:** someone creating an account or logging in, including an existing account holder whose session has ended.
-- **Authenticated Driver:** someone with an active session using the parking features. This is the same person in a different session state; it is not a subtype of the unauthenticated role.
-- **Device Location & Activity Services:** supply location and activity signals for saved-car detection, nearby discovery, and alerts.
+- **Authenticated Driver:** someone with an active session using the parking features.
+- **Device Location & Activity Services:** supply location and activity signals for parking suggestions, nearby discovery, and occupied-feedback evidence.
 - **External Navigation Service:** receives a destination from Spott and provides route guidance.
 - **Push Notification Service:** delivers alerts requested by the Spott backend.
 
-Authentication is a precondition for parking features in this model, following the original diagram. Guest parking discovery would require an explicit product decision.
+Parking operations require authentication.
 
 ## Use-case descriptions
-
-Each row describes the trigger and observable result. Alternative flows preserve the functionality consolidated from the original diagram.
 
 | Use case | Trigger and successful result | Alternatives and conditions |
 | --- | --- | --- |
 | Register Account | An unauthenticated driver requests an account; Spott creates it. | Duplicate or invalid details leave the account uncreated and show a correction message. |
 | Log In | An account holder submits credentials; Spott establishes a session. | Failed authentication leaves the driver signed out. |
 | Log Out | An authenticated driver ends their session. | Parking operations subsequently require authentication. |
-| Save Car Location | The driver saves a parking position, or enabled device signals suggest parking; Spott records a car location the driver can retrieve. | Manual saving remains available. An automatic suggestion can be confirmed, corrected, or dismissed. Without usable location data, the driver selects a position manually. |
+| Save Car Location | The driver selects and explicitly confirms a parking position; Spott saves the private car location. | Device signals can suggest a position for review, correction, or dismissal. Manual selection remains available without usable location data. |
 | View Saved Car Location | The driver requests their parked-car position; Spott displays the saved position. | If none exists, Spott explains that a location must first be saved. |
 | Adjust Saved Car Location | The driver corrects an existing saved position; subsequent retrieval shows the correction. | Requires a saved position. Cancelling preserves the existing position. |
-| Report Upcoming Departure | The driver reports that they expect to leave, using a saved or manually selected position; Spott publishes an upcoming-departure report. | A return-to-car prompt can initiate the same interaction. A photo is optional. The report does not guarantee availability. |
-| Confirm Departure | The driver confirms leaving a previously reported position; Spott marks the report recently vacated with a timestamp. | Requires the driver's active departure report. Sufficient device evidence may provide an automatic confirmation path, as proposed in the overview. |
-| Attach Parking Photo | During departure reporting, the driver chooses a photo; Spott attaches it to the report. | The report can be submitted without a photo. A failed upload permits retry or submission without the photo. |
-| Report Spot Availability | The driver reports an observed spot as available or occupied; Spott reflects that observation in the report. | Requires an identifiable reported spot. This is feedback, not a reservation. |
+| Report Upcoming Departure | The driver explicitly publishes a report at the saved or a manually selected position; Spott sets `POTENTIALLY_LEAVING` and its expiration. | A return-to-car prompt can suggest the action. The report does not guarantee availability. |
+| Confirm Departure | The author explicitly confirms leaving before the upcoming report expires; Spott sets `RECENTLY_VACATED`, records the confirmation time, and starts its validity interval. | Requires the author's active `POTENTIALLY_LEAVING` report. Device signals can suggest confirmation. |
+| Cancel Upcoming Departure | The author cancels an unexpired upcoming report; Spott sets `CANCELLED`. | Requires the author's active `POTENTIALLY_LEAVING` report. |
+| Report Spot Availability | The driver submits an observation for an identified report; Spott records accepted available feedback or closes an active report as `OCCUPIED`. | Occupied feedback requires accepted nearby device-location evidence. Available feedback requires an unexpired `RECENTLY_VACATED` report and preserves `expiresAt`. |
 | Search Nearby Parking | The driver requests nearby reports; Spott displays matching reports on a map with their status and age. | Uses current location when permitted and available; manual area selection provides an alternative. Empty results are a valid outcome. |
 | Filter Parking Reports | While reviewing search results, the driver supplies distance or freshness criteria; Spott displays the matching subset. | Optional. An unfiltered search can complete independently; an empty filtered result is valid. |
 | View Parking Details | The driver selects a report; Spott displays its location, status, timestamp, and available supporting information. | A report may expire or change while being viewed. |
 | View Parking Heatmap | The driver requests a heatmap; Spott displays aggregated parking activity for the selected area. | Requires sufficient observations. Sparse data produces an insufficient-data message. |
-| Navigate to Parking Spot | The driver chooses a reported destination; Spott opens the external navigation service with that location. | Requires a selected destination, rather than a fresh execution of View Parking Details. If the service is unavailable, Spott reports the failed handoff. |
-| Start Parking Search | The driver enables an active search for an area and radius; Spott activates the search subscription. | Foreground map browsing remains independent. If notification permission is unavailable, Spott explains the limitation before enabling push alerts. |
-| Receive Nearby Parking Alerts | A qualifying new or updated report matches an active search; Spott requests delivery of a nearby-parking alert to the driver. | Requires an active search, usable search-area/location information, and notification permission. Delivery may be delayed or fail; the map remains available. |
+| Navigate to Parking Spot | The driver chooses a reported destination; Spott opens the external navigation service with that location. | Requires a selected destination. If the service is unavailable, Spott reports the failed handoff. |
+| Start Parking Search | The driver selects a fixed center, radius in meters, and filters; Spott activates the search subscription. | Only an explicit driver action changes the area. Notification permission and opt-in are required for push alerts. |
+| Receive Nearby Parking Alerts | A qualifying new or updated report matches an active search's fixed circle and filters; Spott requests delivery of an alert. | Requires an unexpired report, an active search, and compatible notification preferences and permissions. Opening an alert reads the report's current state. Delivery may be delayed or fail; the map remains available. |
 | Stop Parking Search | The driver stops an active search; Spott deactivates its subscription. | Subsequent matching reports do not generate new alerts for that search. Already dispatched messages may still arrive. |
 
-Location selection, GPS lookup, map display, and report-status persistence belong inside these interactions. Report expiration is a lifecycle rule. They do not need separate use-case ellipses to remain requirements.
-
-## Relationships
-
-Solid, undirected associations show participation. They do not indicate who initiates an interaction or when it happens; the descriptions above supply that information. In particular, the driver receives alerts triggered by qualifying reports.
-
-Only two optional extensions remain:
+Filtering is optional while reviewing search results:
 
 | Extension | Base use case | Extension point | Condition |
 | --- | --- | --- | --- |
-| Attach Parking Photo | Report Upcoming Departure | Before submitting the departure report | The driver chooses to attach a photo. |
 | Filter Parking Reports | Search Nearby Parking | When reviewing search results | The driver chooses filtering criteria. |
 
-The dashed `<<extend>>` arrow points from the extension to its base. Both bases can complete without their extensions. There are no `<<include>>` relationships in this version: the original candidates were internal steps or temporal prerequisites, and extracting them did not improve this view.
+## Functional rules
 
-Adjusting a saved location is an independent goal with an existing-location precondition. Navigation requires a selected destination. Receiving alerts requires an already active search. None of those conditions means that another use case executes as an included behavior.
+1. **Driver confirmation.** Activity, location, and return-to-car signals can generate suggestions. Saving a parking position and confirming departure both require explicit driver actions. Manual saving and reporting remain available.
+2. **Private car location and public reports.** Each account has at most one current saved car location. Saving it does not publish a parking report. When reporting, the driver selects the saved position or a position manually.
+3. **Cancellation.** Only the author can cancel an unexpired `POTENTIALLY_LEAVING` report. Closed reports cannot be reopened through cancellation.
+4. **Expiration.** Upcoming reports have an initial validity interval. Explicit departure confirmation changes the state to `RECENTLY_VACATED` and starts that state's validity interval. Timestamps and expiration use server time.
+5. **Nearby occupied feedback.** An authenticated driver can close an active report as `OCCUPIED` only when the backend accepts recent, sufficiently accurate device-location evidence near the reported position. A manually selected map point is not proximity evidence. Missing permission, old data, insufficient accuracy, or excessive distance causes rejection.
+6. **Feedback and concurrent updates.** `AVAILABLE` feedback applies only to unexpired `RECENTLY_VACATED` reports and does not extend `expiresAt`. Transitions atomically check the author where required, current state, expiration, and applicable evidence. Delayed feedback does not reopen closed reports.
+7. **Fixed-area active search.** The driver selects a center and radius in meters. Phone movement does not change the center; changing the area requires an explicit driver action. Matching reports must fall inside the saved circle and satisfy its filters.
+8. **Alerts.** New alerts require an active search, an unexpired matching report, and compatible preferences and permissions. Stopping a search stops new alert generation. Already dispatched messages may arrive later; opening an alert reads the current report state.
+9. **Map and navigation.** The map shows report status, age, filters, and details. Ordinary browsing can use current location or a manually selected area. Navigation receives the selected destination. Reads check expiration even before background processing sets the state to `EXPIRED`.
+10. **Aggregated and reference data.** Heatmaps require sufficient relevant observations. Cancelled reports are not evidence of a vacated spot. The confidence indicator is heuristic. Imported zones, rules, and categories retain provenance and verification information. A mapped parking zone does not imply current spot availability.
 
-## Updating the preview
+## Report transitions
 
-Edit `use-cases.puml`, then regenerate the SVG from the repository root with a Java runtime supported by your PlantUML release:
+| From | To | Condition |
+| --- | --- | --- |
+| New report | `POTENTIALLY_LEAVING` | The driver explicitly confirms publication. |
+| `POTENTIALLY_LEAVING` | `RECENTLY_VACATED` | The author explicitly confirms departure before expiration. |
+| `POTENTIALLY_LEAVING` | `CANCELLED` | The author cancels before expiration. |
+| Either active state | `OCCUPIED` | Occupied feedback is accepted after proximity validation. |
+| Either active state | `EXPIRED` | Server time reaches `expiresAt`. |
+
+The active states are `POTENTIALLY_LEAVING` and `RECENTLY_VACATED`. Reports describe community observations rather than reservations or guaranteed availability.
+
+## Parameters to be determined
+
+| Parameter | Purpose |
+| --- | --- |
+| `upcomingTtl` | Validity interval of an upcoming-departure report. |
+| `vacatedTtl` | Validity interval after departure confirmation. |
+| `occupiedProximityMeters` | Maximum accepted distance for occupied feedback. |
+| `maxLocationAge` | Maximum age of the position used as evidence. |
+| `maxLocationAccuracyMeters` | Maximum accepted position uncertainty. |
+
+The domain model groups these values in `ReportPolicy`. Their numeric values and the permitted search-radius limits remain to be determined during implementation. The driver chooses the search radius independently of the occupied-feedback proximity threshold.
+
+## Data flow
+
+The data-flow diagram covers account and saved-car data, reports and feedback, discovery and alerts, and parking reference-data imports. Repeated IDs identify the same external entity or data store.
+
+| Store | Contents |
+| --- | --- |
+| `D1` | Private driver data, including the account and saved car location. |
+| `D2` | Parking reports and accepted availability feedback. |
+| `D3` | Parking reference data with source and verification information. |
+| `D4` | Fixed search circles, filters, and associated notification preferences. |
+
+## Rendering diagrams
+
+Generate the UML previews with PlantUML and the data-flow preview with Graphviz, from the repository root:
 
 ```sh
-java -jar path/to/plantuml.jar -tsvg docs/uml/use-cases.puml
+java -jar path/to/plantuml.jar -tsvg "docs/uml/*.puml"
+dot -Tsvg docs/uml/data-flow.dot -o docs/uml/data-flow.svg
 ```
 
-The current preview was rendered with PlantUML 1.2026.9. Hidden links in the source control placement only; they add no functional relationships. Folder-style packages keep functional-group headings away from connector routes; this is a visual adjustment to the skill's suggested rectangle style.
-
-## Modeling references
-
-- [UML use-case diagram skill](https://github.com/jonatan8254/iconix-uml-skills/blob/main/skills/uml-use-case-diagram/SKILL.md): review checklist for actor goals, scope, granularity, and relationship restraint. Applied as guidance for this refactor.
-- [OMG UML 2.5.1](https://www.omg.org/spec/UML/2.5.1): specification reference for use-case notation and semantics.
-- [PlantUML use-case documentation](https://plantuml.com/use-case-diagram): source syntax for actors, use cases, boundaries, and associations.
-- [IBM include guidance](https://www.ibm.com/docs/en/rsas/7.5.0?topic=diagrams-include-relationships) and [extend guidance](https://www.ibm.com/docs/en/dma?topic=diagrams-extend-relationships): behavior reuse and conditional extensions at defined extension points.
-- [IBM use-case specification outline](https://www.ibm.com/docs/en/engineering-lifecycle-management-suite/doors-next/7.2.0?topic=cases-use-case-specification-outline): textual flows, preconditions, postconditions, and extension points.
-
-The skill is community guidance; it does not certify a model. The descriptions above record the product assumptions that should be reviewed as requirements evolve.
+The existing previews were generated with PlantUML 1.2026.9 and Graphviz 2.44.1.

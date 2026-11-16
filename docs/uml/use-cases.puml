@@ -77,7 +77,7 @@ UC_Search -right- LAS
 UC_Navigate -right- NAV
 UC_ReceiveAlerts -right- NOTIF
 
-' Optional filtering; current product rules are in modeling-decisions.md.
+' Optional filtering; current product rules are in README.md.
 UC_Search <.. UC_Filter : <<extend>>
 
 ' Hidden links constrain layout only; they are not UML relationships.

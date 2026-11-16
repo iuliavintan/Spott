@@ -2,7 +2,7 @@
 
 Spott is a planned Android application that helps drivers find street parking through community reports, parking map data, and optional phone activity signals. Drivers can report an upcoming departure, confirm that they have left, and help nearby drivers discover recently vacated spots.
 
-> **Project status:** The Android starter application is implemented. Parking features and backend services are planned.
+> **Project status:** Week 8 implements a local CRUD prototype for unpublished parking-report drafts using Room. The authenticated community workflow and backend services are planned. See the [Week 8 milestone](docs/milestones/week8.md) and [implementation guide](docs/milestones/week8-guide.md).
 
 Reports describe approximate community observations and do not guarantee availability. Drivers must check parking legality, access rules, and restrictions.
 

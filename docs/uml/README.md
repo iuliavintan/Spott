@@ -1,6 +1,6 @@
 # Spott — Functional Documentation
 
-Spott combines an Android application and backend services for saving a car location, sharing departure reports, discovering parking, and receiving nearby alerts. The Android starter application is implemented; the parking functionality described here is planned.
+Spott combines an Android application and backend services for saving a car location, sharing departure reports, discovering parking, and receiving nearby alerts. [Week 8](../milestones/week8.md) implements local unpublished draft CRUD. The authenticated parking functionality described here remains planned.
 
 The [project overview](../../README.md#planned-features) separates the core MVP from the next iteration. Assisted parking suggestions, geofencing, active-search alerts, heatmaps, and the confidence indicator belong to the next iteration.
 
